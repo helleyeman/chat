@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diamond Chat Room</title>
+    <style>
+        .chat-container {
+            display: flex;
+            height: 90vh;
+            /* Fallback */
+            height: 100dvh;
+            /* Dynamic viewport height for mobile browsers */
+            width: 100%;
+            overflow: hidden;
+            /* Prevent scroll on body */
+        }
+
+        .video-section {
+            flex: 2;
+            background: #000;
+            position: relative;
+            height: 100%;
+        }
+
+        .chat-section {
+            flex: 1;
+            border-left: 1px solid #ccc;
+            display: flex;
+            flex-direction: column;
+            background: white;
+            height: 100%;
+        }
+
+        /* MOBILE STYLES */
+        @media (max-width: 768px) {
+            .chat-container {
+                flex-direction: column;
+            }
+
+            .video-section {
+                flex: 1.5;
+                /* Video takes more space */
+                width: 100%;
+            }
+
+            .chat-section {
+                flex: 1;
+                /* Chat takes less space */
+                width: 100%;
+                border-left: none;
+                border-top: 1px solid #ccc;
+            }
+
+            #local-video {
+                width: 100px;
+                height: 70px;
+                bottom: 10px;
+                right: 10px;
+            }
+
+            #btn-end {
+                padding: 10px 20px;
+                font-size: 14px;
+                bottom: 10px;
+            }
+        }
+
+        #chat-log {
+            flex: 1;
+            overflow-y: scroll;
+            padding: 10px;
+        }
+
+        #chat-message-input {
+            width: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        #local-video {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            width: 150px;
+            height: 100px;
+            border: 2px solid white;
+        }
+
+        #debug-log {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: #0f0;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            font-family: monospace;
+            font-size: 14px;
+            pointer-events: none;
+            z-index: 100;
+            white-space: pre-wrap;
+        }
+
+        #status-msg {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 24px;
+            text-shadow: 1px 1px 2px black;
+        }
+
+        #btn-end {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 15px 40px;
+            background: #f44336;
+            color: white;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: bold;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            z-index: 102;
+            transition: background 0.2s;
+        }
+
+        #btn-end:hover {
+            background: #d32f2f;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="chat-container">
+        <!-- Video Section -->
+        <div class="video-section">
+            <div
+                style="background: #2196f3; color: white; padding: 10px; text-align: center; font-weight: bold; position: absolute; width: 100%; top: 0; z-index: 50;">
+                Talking with: {{ partner_name }}
+            </div>
+
+            <div id="debug-log">Initializing...</div>
+            <div id="status-msg"></div>
+
+            <video id="remote-video" autoplay playsinline></video>
+            <video id="local-video" autoplay playsinline muted></video>
+
+            <!-- END CALL BUTTON -->
+            <button id="btn-end" onclick="endCall()">End Call</button>
+        </div>
+
+        <!-- Chat Section -->
+        <div class="chat-section">
+            <div id="chat-log"></div>
+            <input id="chat-message-input" type="text" placeholder="Type a message...">
+            <button id="chat-message-submit">Send</button>
+        </div>
+    </div>
+
+    {{ room_name|json_script:"room-name" }}
+    {{ is_caller|json_script:"is-caller" }}
+
+    <!-- ERROR OVERLAY (Hidden by default) -->
+    <div id="error-overlay"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:1000; color:white; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:20px;">
+        <h2 style="color:#f44336; font-size: 28px;">🚫 Camera Access Failed</h2>
+        <p style="font-size: 18px; max-width: 500px; line-height: 1.5; margin-bottom: 30px;" id="error-text">
+            Your browser blocked the camera because the connection is insecure.
+        </p>
+
+        <!-- PC FIX BUTTON -->
+        <a id="btn-fix-pc" href="#"
+            style="display:none; padding:15px 30px; background:#4CAF50; color:white; text-decoration:none; font-weight:bold; border-radius:5px; font-size:18px; margin-bottom: 20px;">
+            Fix it for me (Switch to Localhost)
+        </a>
+
+        <!-- MOBILE INSTRUCTIONS -->
+        <div id="mobile-instr"
+            style="display:none; background:#333; padding:20px; border-radius:10px; text-align:left; font-size:14px;">
+            <strong>Step 1:</strong> Open Chrome Address Bar.<br>
+            <strong>Step 2:</strong> Type <code>chrome://flags/#unsafely-treat-insecure-origin-as-secure</code><br>
+            <strong>Step 3:</strong> Enable it and add this IP:
+            <code>http://<span id="ip-address"></span>:8000</code><br>
+            <strong>Step 4:</strong> Relaunch Chrome.
+        </div>
+    </div>
+
+    <script>
+        const roomName = JSON.parse(document.getElementById('room-name').textContent);
+        const isCaller = JSON.parse(document.getElementById('is-caller').textContent);
+        // Dynamic Protocol Selection (ws:// for http, wss:// for https)
+        const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+        const wsUrl = protocol + window.location.host + '/ws/chat/' + roomName + '/';
+
+        // --- UI UTILS ---
+        function log(msg) {
+            console.log(msg);
+            document.getElementById('debug-log').innerHTML += "<br>" + msg;
+        }
+
+        function setStatus(msg) {
+            document.getElementById('status-msg').innerText = msg;
+        }
+
+        function showError(isPC, ip) {
+            document.getElementById('error-overlay').style.display = 'flex';
+            document.getElementById('ip-address').innerText = ip;
+
+            if (isPC) {
+                document.getElementById('error-text').innerText = "You are using an IP address (" + ip + ") on PC. Browsers block cameras on IP addresses. Use Localhost instead.";
+                const fixBtn = document.getElementById('btn-fix-pc');
+                fixBtn.style.display = 'inline-block';
+                fixBtn.href = "http://127.0.0.1:8000/chat/" + roomName + "/";
+            } else {
+                // Check specifically for iOS
+                if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+                    document.getElementById('error-text').innerHTML = "<b>iOS Restricted:</b> Apple blocks camera access on insecure connections (http://).<br><br>You must use <b>HTTPS</b> or try an Android device/PC.";
+                    document.getElementById('mobile-instr').style.display = 'none';
+                } else {
+                    document.getElementById('error-text').innerText = "On Mobile, you MUST enable 'Insecure Origins' because you are using an IP address.";
+                    document.getElementById('mobile-instr').style.display = 'block';
+                }
+            }
+        }
+
+        log("Attempting connect to: " + wsUrl);
+
+        const chatSocket = new WebSocket(wsUrl);
+
+        // --- WEBSOCKET LOGIC ---
+        chatSocket.onopen = function () {
+            log("WebSocket OPEN Success!");
+            setStatus("Connected. Starting Video...");
+
+            // AUTO START LOGIC
+            // We wait for the other user to join to trigger the offer, OR if we are late, we trigger it.
+            // But to be safe content, we still trigger it once on load, and THEN trigger it again if they join later.
+            if (isCaller) {
+                log("I am the Caller. Initiating...");
+                startVideo(true);
+            } else {
+                log("I am the Receiver. Waiting for offer...");
+            }
+            // Note: The new 'user_joined' handler below handles the race condition where we joined first.
+        };
+
+        chatSocket.onerror = function (e) {
+            log("WebSocket ERROR. Status: " + chatSocket.readyState);
+        };
+
+        chatSocket.onclose = function (e) {
+            log("WebSocket CLOSED. Code: " + e.code);
+            setStatus("Call Ended.");
+        };
+
+        chatSocket.onmessage = function (e) {
+            const data = JSON.parse(e.data);
+            if (data.type === 'chat_message') {
+                document.querySelector('#chat-log').innerHTML += (data.username + ': ' + data.message + '<br>');
+            } else if (data.type === 'video_signal') {
+                log("RX Signal: " + data.signal.type);
+                handleVideoSignal(data.signal);
+            } else if (data.type === 'user_joined') {
+                log("User Joined: " + data.sender);
+                setStatus("User Joined! Starting Video...");
+
+                // If I am the caller, I should restart the offer process now that I know they are here
+                if (isCaller) {
+                    log("Partner is here. Sending Offer...");
+                    startVideo(true);
+                }
+            } else if (data.type === 'user_left') {
+                log("User Left!");
+                setStatus("The other user has left.");
+                stopVideo();
+                stopVideo();
+                setTimeout(() => { window.location.replace("/"); }, 3000); // Redirect after 3s
+            }
+        };
+
+        // --- END CALL LOGIC ---
+        function endCall() {
+            if (confirm("Are you sure you want to end the call?")) {
+                stopVideo();
+                chatSocket.close();
+                window.location.replace("/");
+            }
+        }
+
+        // --- CHAT SEND ---
+        document.querySelector('#chat-message-submit').onclick = function (e) {
+            const messageInputDom = document.querySelector('#chat-message-input');
+            const message = messageInputDom.value;
+            chatSocket.send(JSON.stringify({
+                'type': 'chat_message', 'message': message, 'username': "{{ request.user.username }}"
+            }));
+            messageInputDom.value = '';
+        };
+
+        // --- WEBRTC START ---
+        let localStream;
+        let peerConnection;
+        const config = { 'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }] };
+        let iceQueue = [];
+
+        function startVideo(isInitiator) {
+            log("Requesting Camera...");
+
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                // SMART ERROR DETECTION
+                const hostname = window.location.hostname;
+                const isPC = (hostname !== '127.0.0.1' && hostname !== 'localhost');
+                showError(true, hostname); // Default to PC view if logic is simpler, but we can detect mobile UA too.
+
+                // Let's rely on the previous logic we discussed:
+                // If it's a private IP (192, 172, 10) it might be PC or Mobile. 
+                // We'll show the PC button regardless, as it's harmless on mobile (just won't load)
+                if (/Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent)) {
+                    showError(false, hostname);
+                } else {
+                    showError(true, hostname);
+                }
+
+                log("Error: navigator.mediaDevices is undefined");
+                return;
+            }
+
+            navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+                .then(stream => {
+                    log("Camera Access Granted");
+                    localStream = stream;
+                    document.getElementById('local-video').srcObject = stream;
+
+                    setupPeerConnection();
+
+                    if (isInitiator) {
+                        log("Creating Offer...");
+                        peerConnection.createOffer()
+                            .then(offer => peerConnection.setLocalDescription(offer))
+                            .then(() => {
+                                sendSignal({ 'type': 'offer', 'sdp': peerConnection.localDescription });
+                            });
+                    }
+                })
+                .catch(err => {
+                    log("Camera Blocked: " + err);
+                    console.error(err);
+
+                    const hostname = window.location.hostname;
+                    if (/Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent)) {
+                        showError(false, hostname);
+                    } else {
+                        showError(true, hostname);
+                    }
+                });
+        }
+
+        function setupPeerConnection() {
+            peerConnection = new RTCPeerConnection(config);
+
+            localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+            peerConnection.ontrack = event => {
+                log("Received Remote Stream!");
+                document.getElementById('remote-video').srcObject = event.streams[0];
+                setStatus("Connected!");
+                // document.getElementById('debug-log').style.display = 'none'; // Keep debug log visible for mobile testing
+            };
+
+            peerConnection.onicecandidate = event => {
+                if (event.candidate) {
+                    sendSignal({ 'type': 'candidate', 'candidate': event.candidate });
+                }
+            };
+        }
+
+        function handleVideoSignal(signal) {
+            if (signal.type === 'offer') {
+                setStatus("Incoming Call...");
+
+                if (!localStream) {
+                    startVideo(false);
+                } else {
+                    processOffer(signal);
+                }
+
+                if (!peerConnection) {
+                    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+                        .then(stream => {
+                            localStream = stream;
+                            document.getElementById('local-video').srcObject = stream;
+                            setupPeerConnection();
+                            processOffer(signal);
+                        });
+                } else {
+                    processOffer(signal);
+                }
+
+            } else if (signal.type === 'answer') {
+                log("RX Answer");
+                peerConnection.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+                processIceQueue();
+            } else if (signal.type === 'candidate') {
+                if (peerConnection && peerConnection.remoteDescription) {
+                    peerConnection.addIceCandidate(new RTCIceCandidate(signal.candidate));
+                } else {
+                    log("Queuing ICE Candidate");
+                    iceQueue.push(signal.candidate);
+                }
+            }
+        }
+
+        function processOffer(signal) {
+            log("Processing Offer...");
+            peerConnection.setRemoteDescription(new RTCSessionDescription(signal.sdp))
+                .then(() => peerConnection.createAnswer())
+                .then(answer => peerConnection.setLocalDescription(answer))
+                .then(() => {
+                    log("Sending Answer");
+                    sendSignal({ 'type': 'answer', 'sdp': peerConnection.localDescription });
+                    processIceQueue();
+                });
+        }
+
+        function processIceQueue() {
+            while (iceQueue.length > 0) {
+                let candidate = iceQueue.shift();
+                peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+            }
+        }
+
+        function sendSignal(signal) {
+            chatSocket.send(JSON.stringify({
+                'type': 'video_signal',
+                'signal': signal
+            }));
+        }
+
+        function stopVideo() {
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+            }
+            if (peerConnection) {
+                peerConnection.close();
+            }
+        }
+    </script>
+</body>
+
+</html>

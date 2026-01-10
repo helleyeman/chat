@@ -1,0 +1,170 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Profile</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            text-align: center;
+            background: #f0f2f5;
+            margin-top: 50px;
+            margin-left: 10px;
+            margin-right: 10px;
+        }
+
+        .card {
+            background: white;
+            width: 100%;
+            max-width: 400px;
+            margin: 0 auto;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            box-sizing: border-box;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+            text-align: left;
+        }
+
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        input,
+        select,
+        textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin-top: 20px;
+            background: #2196f3;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .btn:hover {
+            background: #1976d2;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="card">
+        <a href="{% url 'dashboard' %}" style="float: left; text-decoration: none;">← Back</a>
+        <h2>Edit Profile</h2>
+        <form method="POST" enctype="multipart/form-data">
+            {% csrf_token %}
+            {% if p_form.errors %}
+            <div style="color: red; margin-bottom: 20px;">
+                <strong>Please correct the errors below:</strong>
+                {{ p_form.errors }}
+            </div>
+            {% endif %}
+
+            <div class="form-group">
+                <label>Current Profile Image</label>
+                <img src="{{ user.profile.image.url }}" alt="Profile Picture"
+                    style="width: 150px; height: 150px; border-radius: 50%; object-fit: cover; margin-bottom: 15px;">
+            </div>
+
+            <div class="form-group">
+                <label>Change Profile Image</label>
+                {{ p_form.image }}
+            </div>
+
+            <div class="form-group">
+                <label>Bio</label>
+                {{ p_form.bio }}
+            </div>
+
+            <div class="form-group">
+                <label>Gender</label>
+                {{ p_form.gender }}
+            </div>
+
+            <div class="form-group">
+                <label>Age</label>
+                {{ p_form.age }}
+            </div>
+
+            <div class="form-group">
+                <label>Country</label>
+                {{ p_form.country }}
+            </div>
+
+            <div class="form-group">
+                <label>State/Province</label>
+                {{ p_form.state }}
+            </div>
+
+            <script>
+                document.addEventListener('DOMContentLoaded', function () {
+                    const countrySelect = document.getElementById('id_country');
+                    const stateSelect = document.getElementById('id_state');
+                    const currentState = "{{ user.profile.state }}"; // Get saved state
+
+                    function fetchStates(countryCode) {
+                        stateSelect.innerHTML = '<option value="">Loading...</option>';
+
+                        fetch(`/ajax/get-states/?country=${countryCode}`)
+                            .then(response => response.json())
+                            .then(data => {
+                                stateSelect.innerHTML = '<option value="">---------</option>';
+                                data.states.forEach(state => {
+                                    const option = document.createElement('option');
+                                    option.value = state.name; // Saving name directly
+                                    option.textContent = state.name;
+                                    if (state.name === currentState) {
+                                        option.selected = true;
+                                    }
+                                    stateSelect.appendChild(option);
+                                });
+                            })
+                            .catch(error => {
+                                console.error('Error:', error);
+                                stateSelect.innerHTML = '<option value="">Error loading states</option>';
+                            });
+                    }
+
+                    countrySelect.addEventListener('change', function () {
+                        fetchStates(this.value);
+                    });
+
+                    // Initial load
+                    if (countrySelect.value) {
+                        fetchStates(countrySelect.value);
+                    }
+                });
+            </script>
+
+            <div class="form-group">
+                <label>Call Price (💎)</label>
+                {{ p_form.call_price }}
+            </div>
+
+            <button type="submit" class="btn">Update Profile</button>
+        </form>
+    </div>
+
+</body>
+
+</html>

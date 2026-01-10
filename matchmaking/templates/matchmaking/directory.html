@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Find Users</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            background: #f0f2f5;
+            display: flex;
+            margin: 0;
+        }
+
+        .sidebar {
+            width: 250px;
+            background: white;
+            padding: 20px;
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+            height: 100vh;
+            position: fixed;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+
+        .main {
+            flex-grow: 1;
+            padding: 20px;
+            margin-left: 270px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                height: auto;
+                position: relative;
+                box-shadow: none;
+                border-bottom: 2px solid #ddd;
+            }
+
+            .main {
+                margin-left: 0;
+            }
+        }
+
+        .user-card {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .price {
+            color: #e91e63;
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+
+        .btn-call {
+            background: #4CAF50;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            text-decoration: none;
+            display: block;
+            margin-top: 10px;
+        }
+
+        input,
+        select {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            background: #2196f3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="sidebar">
+        <h3>Filters</h3>
+        <p style="text-align:center; background:#fff3cd; padding:5px; border-radius:5px;">
+            My Diamonds: <strong>💎 {{ user.profile.diamonds }}</strong>
+        </p>
+        <form method="GET">
+            <label>Gender:</label>
+            <select name="gender">
+                <option value="">Any</option>
+                <option value="M">Male</option>
+                <option value="F">Female</option>
+            </select>
+
+            <label>Location:</label>
+            <input type="text" name="location" placeholder="City..." value="{{ filters.location }}">
+
+            <label>Max Price (💎):</label>
+            <input type="number" name="max_price" value="{{ filters.max_price }}">
+
+            <button type="submit">Apply Filters</button>
+            <br><br>
+            <a href="{% url 'dashboard' %}" style="display:block; text-align:center;">Back to Dashboard</a>
+        </form>
+    </div>
+
+    <div class="main">
+        {% if messages %}
+        <ul style="list-style:none; padding:0; margin-bottom:20px;">
+            {% for message in messages %}
+            <li style="padding:10px; border-radius:5px; margin-bottom:10px; 
+                {% if message.tags == 'error' %}background:#ffebee; color:#c62828;
+                {% elif message.tags == 'success' %}background:#e8f5e9; color:#2e7d32;
+                {% else %}background:#e3f2fd; color:#1565c0;{% endif %}">
+                {{ message }}
+            </li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        {% for profile in users %}
+        <div class="user-card">
+            <img src="{{ profile.image.url }}"
+                style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; margin-bottom: 10px;">
+            <h3>{{ profile.user.username }}</h3>
+            <p>{{ profile.age }} yrs • {{ profile.location }}</p>
+            <div class="price">💎 {{ profile.call_price }}</div>
+            <p><small>Total Cost: 💎 {{ profile.call_price|add:profile.call_price }} (est.)</small></p>
+            <a href="{% url 'send_call_request' profile.user.username %}" class="btn-call">Request Call</a>
+        </div>
+        {% empty %}
+        <p>No online users found with these filters.</p>
+        {% endfor %}
+    </div>
+    <script>
+        // Prevent Filter History Stacking
+        document.querySelector('form').addEventListener('submit', function (e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            const searchParams = new URLSearchParams(formData);
+            const newUrl = window.location.pathname + '?' + searchParams.toString();
+            window.location.replace(newUrl); // Replaces current history entry
+        });
+
+        // Check for accepted call requests every 2 seconds
+        let pollInterval = setInterval(function () {
+            fetch("/matchmaking/check-request-status/?t=" + new Date().getTime())
+                .then(response => response.json())
+                .then(data => {
+                    console.log("Status Check:", data);
+                    if (data.status === 'accepted') {
+                        clearInterval(pollInterval); // Stop polling immediately
+                        window.location.replace("/chat/" + data.room_name + "/"); // Use replace to avoid history stack
+                    }
+                })
+                .catch(err => console.error("Polling Error:", err));
+        }, 2000);
+    </script>
+</body>
+
+</html>

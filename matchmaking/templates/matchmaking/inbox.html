@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inbox</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            background: #f0f2f5;
+            text-align: center;
+            padding-top: 50px;
+            margin: 0 10px;
+        }
+
+        .card {
+            background: white;
+            width: 100%;
+            max-width: 300px;
+            margin: 20px auto;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            box-sizing: border-box;
+        }
+
+        .btn-accept {
+            background: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 5px;
+        }
+
+        .btn-reject {
+            background: #f44336;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 5px;
+        }
+
+        .sender-name {
+            color: #2196f3;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Incoming Call Requests</h1>
+    <a href="{% url 'dashboard' %}">Back to Dashboard</a>
+
+    {% if messages %}
+    <ul style="list-style:none; padding:0; margin:20px auto; width:300px;">
+        {% for message in messages %}
+        <li style="padding:10px; border-radius:5px; margin-bottom:10px; 
+            {% if message.tags == 'error' %}background:#ffebee; color:#c62828;
+            {% elif message.tags == 'success' %}background:#e8f5e9; color:#2e7d32;
+            {% else %}background:#e3f2fd; color:#1565c0;{% endif %}">
+            {{ message }}
+        </li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+
+    {% for req in requests %}
+    <div class="card">
+        <img src="{{ req.sender.profile.image.url }}"
+            style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; margin-bottom: 10px;">
+        <h3 class="sender-name">{{ req.sender.username }}</h3>
+
+        <p style="margin: 5px 0; color: #555;">
+            {{ req.sender.profile.age }} yrs • {{ req.sender.profile.get_gender_display }}
+        </p>
+
+        {% if req.sender.profile.location %}
+        <p style="margin: 5px 0; color: #777;">📍 {{ req.sender.profile.location }}</p>
+        {% endif %}
+
+        {% if req.sender.profile.bio %}
+        <p style="font-style: italic; color: #666; font-size: 0.9em; margin: 10px 0;">"{{ req.sender.profile.bio }}"</p>
+        {% endif %}
+
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
+
+        <p><strong>Wants to call you!</strong></p>
+        <p>You will earn: 💎 <span style="color:#e91e63; font-weight:bold;">{{ user.profile.call_price }}</span></p>
+
+        <p><small style="color: #999;">Received: {{ req.timestamp|timesince }} ago</small></p>
+
+        <div style="margin-top: 15px;">
+            <a href="{% url 'handle_request' req.id 'accept' %}" class="btn-accept">Accept</a>
+            <a href="{% url 'handle_request' req.id 'reject' %}" class="btn-reject">Reject</a>
+        </div>
+    </div>
+    {% empty %}
+    <p>No pending requests.</p>
+    {% endfor %}
+</body>
+
+</html>

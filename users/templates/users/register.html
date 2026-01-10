@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diamond Chat Register</title>
+</head>
+
+<body>
+    <div style="text-align: center; margin-top: 50px; padding: 20px;">
+        <h2>Join Diamond Chat</h2>
+        <form method="POST">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit">Sign Up</button>
+        </form>
+        <p>Already have an account? <a href="{% url 'login' %}">Sign In</a></p>
+    </div>
+</body>
+
+</html>

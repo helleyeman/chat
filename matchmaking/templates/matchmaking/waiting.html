@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Finding Match...</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            text-align: center;
+            padding-top: 100px;
+            background: #f0f2f5;
+        }
+
+        .loader {
+            border: 8px solid #f3f3f3;
+            border-top: 8px solid #e91e63;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+    <script>
+        function checkStatus() {
+            fetch("{% url 'check_match_status' %}")
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'matched') {
+                        window.location.replace("/chat/" + data.room_name + "/");
+                    } else if (data.status === 'cancelled') {
+                        window.location.replace("{% url 'dashboard' %}");
+                    }
+                });
+        }
+        setInterval(checkStatus, 2000);
+    </script>
+</head>
+
+<body>
+    <div class="loader"></div>
+    <h2>Finding your match...</h2>
+    <p>Please wait while we connect you with someone.</p>
+    <a href="{% url 'cancel_search' %}">Cancel</a>
+</body>
+
+</html>
