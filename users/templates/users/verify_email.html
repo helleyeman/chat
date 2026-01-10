@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Email</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            text-align: center;
+            background: #f0f2f5;
+            padding-top: 50px;
+        }
+
+        .container {
+            background: white;
+            max-width: 400px;
+            margin: 0 auto;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            box-sizing: border-box;
+            font-size: 18px;
+            text-align: center;
+            letter-spacing: 5px;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            background: #2196f3;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #1976d2;
+        }
+
+        .alert {
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .info {
+            background: #e3f2fd;
+            color: #0d47a1;
+        }
+
+        .error {
+            background: #ffebee;
+            color: #c62828;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h2>Verify Your Email</h2>
+
+        {% if messages %}
+        {% for message in messages %}
+        <div class="alert {% if message.tags == 'error' %}error{% else %}info{% endif %}">
+            {{ message }}
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        <p>We verified your specific request! A code has been sent to your email (Check the terminal).</p>
+
+        <form method="POST">
+            {% csrf_token %}
+            <label>Enter 6-digit Code:</label>
+            <input type="text" name="otp" placeholder="123456" maxlength="6" required>
+
+            <button type="submit">Verify Account</button>
+        </form>
+    </div>
+
+</body>
+
+</html>

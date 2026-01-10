@@ -5,6 +5,9 @@ from .models import Room
 
 @login_required
 def rooms(request, room_name):
+    if not request.user.profile.is_verified:
+        return redirect('verify_email')
+
     room = Room.objects.filter(name=room_name).first()
     partner_name = "Unknown"
     

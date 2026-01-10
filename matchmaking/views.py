@@ -13,6 +13,9 @@ from django.views.decorators.cache import never_cache
 def start_search(request):
     user = request.user
     profile = user.profile
+    
+    if not profile.is_verified:
+        return redirect('verify_email')
 
     # 1. Check if user has enough diamonds
     if profile.diamonds < 3:
@@ -121,6 +124,9 @@ def check_match_status(request):
 def user_directory(request):
     from django.utils import timezone
     from datetime import timedelta
+    
+    if not request.user.profile.is_verified:
+        return redirect('verify_email')
 
     # Fix: Get filter parameters
     gender = request.GET.get('gender', '')

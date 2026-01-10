@@ -21,6 +21,7 @@ from users import views as user_views
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('register/', user_views.register, name = 'register'), 
+    path('verify-email/', user_views.verify_email, name='verify_email'),
     path('chat/', include('room.urls')), 
     path('login/', auth_views.LoginView.as_view(template_name = 'users/login.html'), name = 'login'),
     path('logout/', auth_views.LogoutView.as_view(template_name = 'users/logout.html'), name = 'logout'), 

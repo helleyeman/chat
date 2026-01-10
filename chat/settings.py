@@ -145,3 +145,6 @@ MEDIA_URL = '/media/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 LOGIN_REDIRECT_URL = 'dashboard'
+
+# Email Configuration (Dev Mode: Prints to Console)
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
