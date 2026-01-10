@@ -139,7 +139,7 @@
             <img src="{{ profile.image.url }}"
                 style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; margin-bottom: 10px;">
             <h3>{{ profile.user.username }}</h3>
-            <p>{{ profile.age }} yrs • {{ profile.location }}</p>
+            <p>{{ profile.age }} yrs • {{ profile.state }}, {{ profile.country.name }}</p>
             <div class="price">💎 {{ profile.call_price }}</div>
             <p><small>Total Cost: 💎 {{ profile.call_price|add:profile.call_price }} (est.)</small></p>
             <a href="{% url 'send_call_request' profile.user.username %}" class="btn-call">Request Call</a>

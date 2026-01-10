@@ -76,9 +76,8 @@
             {{ req.sender.profile.age }} yrs • {{ req.sender.profile.get_gender_display }}
         </p>
 
-        {% if req.sender.profile.location %}
-        <p style="margin: 5px 0; color: #777;">📍 {{ req.sender.profile.location }}</p>
-        {% endif %}
+        <p style="margin: 5px 0; color: #777;">📍 {{ req.sender.profile.state }}, {{ req.sender.profile.country.name }}
+        </p>
 
         {% if req.sender.profile.bio %}
         <p style="font-style: italic; color: #666; font-size: 0.9em; margin: 10px 0;">"{{ req.sender.profile.bio }}"</p>
