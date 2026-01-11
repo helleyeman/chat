@@ -6,6 +6,7 @@ from django.core.mail import send_mail
 from django.conf import settings
 import random
 from .models import Profile
+from django.contrib.auth.models import User
 
 def register(request):
     if request.method == 'POST':
@@ -133,3 +134,100 @@ def profile(request):
     }
 
     return render(request, 'users/profile.html', context)
+
+from django.views.decorators.csrf import csrf_exempt
+import json
+from .models import Report
+
+@login_required
+def verify_gender(request):
+    if request.method == 'POST':
+        import json
+        try:
+            data = json.loads(request.body)
+            print(f"DEBUG: verify_gender called by {request.user.username} with data: {data}")
+        except json.JSONDecodeError:
+            print("DEBUG: JSON Decode Error")
+            return JsonResponse({'status': 'error', 'message': 'Invalid JSON'})
+
+        target_username = data.get('username')
+        gender_verdict = data.get('gender') # 'M' or 'F'
+
+        if not target_username or not gender_verdict:
+            print("DEBUG: Missing username or gender")
+            return JsonResponse({'status': 'error', 'message': 'Invalid data'})
+
+        try:
+            target_user = User.objects.get(username=target_username)
+            if target_user == request.user:
+                 print("DEBUG: User tried to verify self")
+                 return JsonResponse({'status': 'error', 'message': 'Cannot verify yourself'})
+            
+            # --- VOTING LOGIC ---
+            profile = target_user.profile
+            print(f"DEBUG: Before vote - M:{profile.male_votes} F:{profile.female_votes}")
+            
+            if gender_verdict == 'M':
+                profile.male_votes += 1
+            elif gender_verdict == 'F':
+                profile.female_votes += 1
+            
+            # Majority Rule (DECOUPLED: Does NOT update profile.gender anymore)
+            # if profile.male_votes > profile.female_votes:
+            #     profile.gender = 'M'
+            # elif profile.female_votes > profile.male_votes:
+            #     profile.gender = 'F'
+            
+            profile.save()
+            print(f"DEBUG: After vote - M:{profile.male_votes} F:{profile.female_votes} (Gender Remains: {profile.gender})")
+
+            return JsonResponse({
+                'status': 'success', 
+                'message': 'Vote recorded',
+                'new_gender': profile.gender
+            })
+        except User.DoesNotExist:
+             print(f"DEBUG: Target user {target_username} not found")
+             return JsonResponse({'status': 'error', 'message': 'User not found'})
+    
+    return JsonResponse({'status': 'error', 'message': 'POST required'})
+
+@login_required
+def report_user(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            reported_username = data.get('username')
+            reason = data.get('reason', 'Inappropriate Behavior')
+            
+            # Find the user being reported
+            try:
+                from django.contrib.auth.models import User
+                reported_user = User.objects.get(username=reported_username)
+            except User.DoesNotExist:
+                return JsonResponse({'status': 'error', 'message': 'User not found'})
+
+            # Create Report
+            Report.objects.create(
+                reporter=request.user,
+                reported_user=reported_user,
+                reason=reason
+            )
+
+            # Update Profile Stats
+            profile = reported_user.profile
+            profile.reports_received += 1
+            
+            # Auto-Ban Logic
+            if profile.reports_received >= 3:
+                profile.is_banned = True
+                print(f"BANNED USER: {reported_username}") # Log it
+            
+            profile.save()
+            
+            return JsonResponse({'status': 'success', 'banned': profile.is_banned})
+
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)})
+    
+    return JsonResponse({'status': 'error', 'message': 'Invalid request'})

@@ -21,6 +21,11 @@ def start_search(request):
     if profile.diamonds < 3:
         messages.error(request, "Not enough diamonds! You need 3 diamonds.")
         return redirect('dashboard')
+    
+    # 2. Check Age Restriction
+    if profile.age < 18:
+        messages.error(request, "You must be 18+ to use this feature.")
+        return redirect('dashboard')
 
     # Remove ANY existing stale entry for this user in the queue
     Loop.objects.filter(user=user).delete()
@@ -128,6 +133,10 @@ def user_directory(request):
     if not request.user.profile.is_verified:
         return redirect('verify_email')
 
+    if request.user.profile.age < 18:
+        messages.error(request, "You must be 18+ to view the directory.")
+        return redirect('dashboard')
+
     # Fix: Get filter parameters
     gender = request.GET.get('gender', '')
     min_age = request.GET.get('min_age', 18)
@@ -150,7 +159,21 @@ def user_directory(request):
     users = users.filter(age__gte=min_age, age__lte=max_age)
     
     if location:
-        users = users.filter(location__icontains=location)
+        # Flexible Search: Check State OR Country Name
+        from django.db.models import Q
+        from django_countries import countries
+
+        # Find country codes where key or name matches the search query
+        matching_codes = []
+        for code, name in list(countries):
+            if location.lower() in name.lower() or location.upper() == code:
+                matching_codes.append(code)
+
+        users = users.filter(
+            Q(state__icontains=location) | 
+            Q(country__in=matching_codes) |
+            Q(location__icontains=location) # Support legacy data
+        )
     
     users = users.filter(call_price__lte=max_price)
 
@@ -178,11 +201,28 @@ def send_call_request(request, username):
 
 
     CallRequest.objects.create(sender = sender, receiver = receiver)
+    
+    # --- NOTIFY RECEIVER ---
+    from channels.layers import get_channel_layer
+    from asgiref.sync import async_to_sync
+    channel_layer = get_channel_layer()
+    async_to_sync(channel_layer.group_send)(
+        f"user_{receiver.id}",
+        {
+            "type": "notification_message",
+            "message": "New Call Request!"
+        }
+    )
+
     messages.success(request, f"Request sent to {receiver.username}!")
     return redirect('user_directory')
 
 @login_required
 def inbox(request):
+    if request.user.profile.age < 18:
+        messages.error(request, "You must be 18+ to access the inbox.")
+        return redirect('dashboard')
+
     requests = CallRequest.objects.filter(receiver = request.user, status = 'pending').order_by('-timestamp')
     return render(request, 'matchmaking/inbox.html', {'requests': requests})
 

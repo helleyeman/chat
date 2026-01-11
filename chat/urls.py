@@ -29,6 +29,8 @@ urlpatterns = [
     path('', user_views.dashboard, name='dashboard'),
     path('profile/', user_views.profile, name='profile'),
     path('ajax/get-states/', user_views.get_states, name='get_states'),
+    path('ajax/report-user/', user_views.report_user, name='report_user'),
+    path('ajax/verify-gender/', user_views.verify_gender, name='verify_gender'),
 ]
 
 from django.conf import settings

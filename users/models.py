@@ -28,10 +28,31 @@ class Profile(models.Model):
     # Verification
     verification_code = models.CharField(max_length=6, blank=True, null=True)
     is_verified = models.BooleanField(default=False)
+    
+    # Moderation
+    reports_received = models.IntegerField(default=0)
+    is_banned = models.BooleanField(default=False)
+    
+    # Verification (Voting)
+    male_votes = models.IntegerField(default=0)
+    female_votes = models.IntegerField(default=0)
+
+    @property
+    def is_gender_locked(self):
+        return (self.male_votes + self.female_votes) > 0
 
     def __str__(self):
         return f'{self.user.username}'
     
     def is_online(self):
         return timezone.now() - self.last_seen < timezone.timedelta(minutes = 5)
+
+class Report(models.Model):
+    reporter = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reports_sent')
+    reported_user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reports_received_incidents')
+    reason = models.TextField(blank=True)
+    timestamp = models.DateTimeField(default=timezone.now)
+
+    def __str__(self):
+        return f"{self.reporter} reported {self.reported_user}"
         

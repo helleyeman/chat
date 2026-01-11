@@ -4,17 +4,87 @@
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Diamond Chat Register</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            text-align: center;
+            background: #f0f2f5;
+            padding-top: 50px;
+            margin: 0 10px;
+        }
+
+        .card {
+            background: white;
+            width: 100%;
+            max-width: 400px;
+            margin: 0 auto;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            box-sizing: border-box;
+        }
+
+        h2 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        form p {
+            text-align: left;
+            margin-bottom: 15px;
+        }
+
+        /* Make form inputs look good */
+        input {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+
+        label {
+            font-weight: bold;
+            color: #555;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #e91e63;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        .login-link {
+            margin-top: 20px;
+            display: block;
+            color: #2196f3;
+            text-decoration: none;
+        }
+    </style>
 </head>
 
 <body>
-    <div style="text-align: center; margin-top: 50px; padding: 20px;">
+    <div class="card">
         <h2>Join Diamond Chat</h2>
         <form method="POST">
             {% csrf_token %}
             {{ form.as_p }}
             <button type="submit">Sign Up</button>
         </form>
-        <p>Already have an account? <a href="{% url 'login' %}">Sign In</a></p>
+        <p><a href="{% url 'login' %}" class="login-link">Already have an account? Sign In</a></p>
     </div>
 </body>
 

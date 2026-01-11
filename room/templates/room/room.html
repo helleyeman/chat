@@ -5,92 +5,377 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Diamond Chat Room</title>
     <style>
-        .chat-container {
-            display: flex;
-            height: 90vh;
+        :root {
+            --primary: #2196f3;
+            --danger: #f44336;
+            --warning: #ff9800;
+            --dark-bg: #121212;
+            --light-bg: #f5f5f5;
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--dark-bg);
+            height: 100vh;
             /* Fallback */
             height: 100dvh;
-            /* Dynamic viewport height for mobile browsers */
-            width: 100%;
+            /* Dynamic viewport height for mobile */
             overflow: hidden;
-            /* Prevent scroll on body */
         }
 
-        .video-section {
-            flex: 2;
-            background: #000;
-            position: relative;
-            height: 100%;
-        }
-
-        .chat-section {
-            flex: 1;
-            border-left: 1px solid #ccc;
+        .chat-container {
+            position: fixed;
+            /* Fixes layout to viewport, preventing scroll-shift */
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
             display: flex;
-            flex-direction: column;
-            background: white;
-            height: 100%;
+            background: var(--dark-bg);
+            /* height is determined by inset */
         }
 
-        /* MOBILE STYLES */
+        /* ... (styles skipped) ... */
+
+        .chat-input-area {
+            padding: 15px;
+            background: white;
+            border-top: 1px solid #eee;
+            display: flex;
+            gap: 10px;
+            flex-shrink: 0;
+            /* CRITICAL: Prevent input from being squashed */
+        }
+
+        /* ... (mobile styles) ... */
+
         @media (max-width: 768px) {
             .chat-container {
                 flex-direction: column;
             }
 
             .video-section {
-                flex: 1.5;
-                /* Video takes more space */
-                width: 100%;
+                flex: 0 0 40%;
+                /* Reduced for more chat space */
+                min-height: 0;
             }
 
             .chat-section {
                 flex: 1;
-                /* Chat takes less space */
-                width: 100%;
+                /* Takes remaining 60% */
                 border-left: none;
                 border-top: 1px solid #ccc;
+                max-width: 100%;
+                min-height: 0;
+                display: flex;
+                flex-direction: column;
+            }
+
+            #chat-log {
+                flex: 1;
+                min-height: 0;
+                /* Allows scrolling */
             }
 
             #local-video {
-                width: 100px;
-                height: 70px;
-                bottom: 10px;
+                width: 80px;
+                height: 110px;
+                bottom: 20px;
                 right: 10px;
             }
 
-            #btn-end {
-                padding: 10px 20px;
-                font-size: 14px;
-                bottom: 10px;
-            }
+            /* ... (rest unchanged) ... */
         }
 
-        #chat-log {
-            flex: 1;
-            overflow-y: scroll;
-            padding: 10px;
-        }
-
-        #chat-message-input {
-            width: 100%;
-            padding: 10px;
-            box-sizing: border-box;
+        /* --- VIDEO SECTION --- */
+        .video-section {
+            flex: 2;
+            position: relative;
+            background: black;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
         }
 
         video {
             width: 100%;
             height: 100%;
-            object-fit: cover;
+            object-fit: contain;
+            /* Changed from cover to prevent zooming/cropping */
+            background: black;
+            /* Ensure black bars for aspect ratio mismatch */
+        }
+
+        #remote-video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
         }
 
         #local-video {
             position: absolute;
-            bottom: 10px;
-            right: 10px;
-            width: 150px;
-            height: 100px;
-            border: 2px solid white;
+            bottom: 20px;
+            right: 20px;
+            width: 140px;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 12px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            z-index: 2;
+            transition: all 0.3s ease;
+        }
+
+        #local-video:hover {
+            transform: scale(1.05);
+        }
+
+        /* --- OVERLAYS --- */
+        .partner-name {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            z-index: 10;
+            font-size: 14px;
+        }
+
+        #status-msg {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            z-index: 10;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+
+        #status-msg.visible {
+            opacity: 1;
+        }
+
+        /* --- CONTROLS BAR --- */
+        .controls-bar {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 20px;
+            z-index: 100;
+            /* background: rgba(0, 0, 0, 0.5); Removed for cleaner look */
+            padding: 10px;
+            border-radius: 40px;
+            /* backdrop-filter: blur(10px); */
+        }
+
+        .btn-control {
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: white;
+            transition: transform 0.2s, background 0.2s;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn-control:hover {
+            transform: scale(1.1);
+        }
+
+        .btn-control:active {
+            transform: scale(0.95);
+        }
+
+        .btn-end {
+            width: 70px;
+            height: 70px;
+            font-size: 32px;
+            background: linear-gradient(135deg, #ff1744, #d50000);
+            /* Vivid Red Gradient */
+        }
+
+        .btn-report {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            font-size: 18px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            z-index: 110 !important;
+            /* Force on top */
+        }
+
+        .btn-report:hover {
+            background: rgba(244, 67, 54, 0.8);
+            /* Red on hover */
+        }
+
+        /* --- CHAT SECTION --- */
+        .chat-section {
+            flex: 1;
+            max-width: 400px;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            border-left: 1px solid #eee;
+            z-index: 20;
+        }
+
+        #chat-log {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            background: #f8f9fa;
+        }
+
+        .message-bubble {
+            max-width: 80%;
+            padding: 10px 14px;
+            border-radius: 12px;
+            font-size: 14px;
+            line-height: 1.4;
+            word-wrap: break-word;
+            word-break: break-word;
+            /* Ensure long words break */
+        }
+
+        .msg-in {
+            align-self: flex-start;
+            background: white;
+            color: #333;
+            border: 1px solid #eee;
+            border-bottom-left-radius: 2px;
+        }
+
+        .msg-out {
+            align-self: flex-end;
+            background: var(--primary);
+            color: white;
+            border-bottom-right-radius: 2px;
+        }
+
+        .meta-info {
+            font-size: 10px;
+            opacity: 0.7;
+            margin-bottom: 2px;
+            display: block;
+        }
+
+        .chat-input-area {
+            padding: 15px;
+            background: white;
+            border-top: 1px solid #eee;
+            display: flex;
+            gap: 10px;
+        }
+
+        #chat-message-input {
+            flex: 1;
+            padding: 12px 15px;
+            border-radius: 24px;
+            border: 1px solid #ddd;
+            outline: none;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+
+        #chat-message-input:focus {
+            border-color: var(--primary);
+        }
+
+        #chat-message-submit {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0 20px;
+            border-radius: 24px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        /* --- MOBILE RESPONSIVE --- */
+        /* --- MOBILE RESPONSIVE --- */
+        @media (max-width: 768px) {
+            .chat-container {
+                flex-direction: column;
+            }
+
+            .video-section {
+                flex: 0 0 45%;
+                /* Fixed 45% height for video */
+                min-height: 0;
+                /* Important for flex scaling */
+            }
+
+            .chat-section {
+                flex: 1;
+                border-left: none;
+                border-top: 1px solid #ccc;
+                max-width: 100%;
+                min-height: 0;
+                /* Important for flex scaling */
+            }
+
+            #local-video {
+                width: 80px;
+                /* Smaller */
+                height: 110px;
+                bottom: 20px;
+                /* Closer to bottom of video section */
+                right: 10px;
+            }
+
+            .controls-bar {
+                bottom: 10px;
+                padding: 5px 10px;
+                gap: 15px;
+            }
+
+            .btn-control {
+                width: 40px;
+                height: 40px;
+                font-size: 18px;
+            }
+
+            .btn-end {
+                width: 50px;
+                height: 50px;
+                font-size: 24px;
+            }
+
+            .partner-name {
+                top: 10px;
+                left: 10px;
+                font-size: 12px;
+            }
         }
 
         #debug-log {
@@ -105,73 +390,75 @@
             pointer-events: none;
             z-index: 100;
             white-space: pre-wrap;
-        }
-
-        #status-msg {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: white;
-            font-size: 24px;
-            text-shadow: 1px 1px 2px black;
-        }
-
-        #btn-end {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            padding: 15px 40px;
-            background: #f44336;
-            color: white;
-            border: none;
-            border-radius: 30px;
-            cursor: pointer;
-            font-size: 18px;
-            font-weight: bold;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-            z-index: 102;
-            transition: background 0.2s;
-        }
-
-        #btn-end:hover {
-            background: #d32f2f;
+            display: none;
+            /* Hidden by default */
         }
     </style>
 </head>
 
 <body>
     <div class="chat-container">
-        <!-- Video Section -->
+        <!-- VIDEO AREA -->
         <div class="video-section">
-            <div
-                style="background: #2196f3; color: white; padding: 10px; text-align: center; font-weight: bold; position: absolute; width: 100%; top: 0; z-index: 50;">
-                Talking with: {{ partner_name }}
+            <div class="partner-name">
+                <span style="opacity:0.7">Talking with:</span> {{ partner_name }}
             </div>
 
-            <div id="debug-log">Initializing...</div>
-            <div id="status-msg"></div>
+            <!-- STATUS TOAST -->
+            <div id="status-msg" class="visible">Connecting...</div>
 
+            <!-- VIDEO FEEDS -->
             <video id="remote-video" autoplay playsinline></video>
             <video id="local-video" autoplay playsinline muted></video>
 
-            <!-- END CALL BUTTON -->
-            <button id="btn-end" onclick="endCall()">End Call</button>
+            <!-- REPORT BUTTON (Moved to top right) -->
+            <button class="btn-control btn-report" onclick="reportUser()" title="Report User">⚠️</button>
+
+            <!-- GENDER VERIFICATION (Crowdsourced Voting) -->
+            <div id="verify-area"
+                style="position:absolute; top:80px; left:20px; z-index:100; display:flex; flex-direction:column; gap:10px;">
+                <div
+                    style="color:white; font-size:12px; background:rgba(0,0,0,0.5); padding:4px 8px; border-radius:4px;">
+                    Vote Gender:
+                </div>
+                <div style="display:flex; gap:10px;">
+                    <button onclick="verifyGender('M')"
+                        style="background:#2196f3; color:white; border:none; padding:8px 12px; border-radius:20px; cursor:pointer; font-weight:bold;">Male</button>
+                    <button onclick="verifyGender('F')"
+                        style="background:#e91e63; color:white; border:none; padding:8px 12px; border-radius:20px; cursor:pointer; font-weight:bold;">Female</button>
+                </div>
+            </div>
+
+            <!-- CONTROLS BAR -->
+            <div class="controls-bar">
+                <button class="btn-control btn-end" onclick="endCall()" title="End Call">📞</button>
+            </div>
+
+            <!-- DEBUG LOG (Hidden) -->
+            <div id="debug-log">
+                <span onclick="this.parentElement.style.display='none'" style="float:right; cursor:pointer;">[X]</span>
+                Initializing...
+            </div>
         </div>
 
-        <!-- Chat Section -->
+        <!-- CHAT AREA -->
         <div class="chat-section">
-            <div id="chat-log"></div>
-            <input id="chat-message-input" type="text" placeholder="Type a message...">
-            <button id="chat-message-submit">Send</button>
+            <div id="chat-log">
+                <div style="text-align:center; color:#999; font-size:12px; margin-top:20px;">
+                    Start of conversation with {{ partner_name }}
+                </div>
+            </div>
+            <div class="chat-input-area">
+                <input id="chat-message-input" type="text" placeholder="Type a message...">
+                <button id="chat-message-submit">Send</button>
+            </div>
         </div>
     </div>
 
     {{ room_name|json_script:"room-name" }}
     {{ is_caller|json_script:"is-caller" }}
 
-    <!-- ERROR OVERLAY (Hidden by default) -->
+    <!-- ERROR OVERLAY -->
     <div id="error-overlay"
         style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:1000; color:white; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:20px;">
         <h2 style="color:#f44336; font-size: 28px;">🚫 Camera Access Failed</h2>
@@ -199,23 +486,36 @@
     <script>
         const roomName = JSON.parse(document.getElementById('room-name').textContent);
         const isCaller = JSON.parse(document.getElementById('is-caller').textContent);
-        // Dynamic Protocol Selection (ws:// for http, wss:// for https)
         const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
         const wsUrl = protocol + window.location.host + '/ws/chat/' + roomName + '/';
 
-        // --- UI UTILS ---
         function log(msg) {
             console.log(msg);
             document.getElementById('debug-log').innerHTML += "<br>" + msg;
         }
 
         function setStatus(msg) {
-            document.getElementById('status-msg').innerText = msg;
+            const el = document.getElementById('status-msg');
+            el.innerText = msg;
+            el.classList.add('visible');
+            // Hide after 3s if it's a "User Joined" type message, but keep "Connected"
+            // For now simply showing it is enough.
         }
 
         function showError(isPC, ip) {
             document.getElementById('error-overlay').style.display = 'flex';
             document.getElementById('ip-address').innerText = ip;
+
+            if (window.location.protocol !== 'https:' && !isPC && ip !== 'localhost') {
+                document.getElementById('error-text').innerHTML = `
+                    <b>Camera Blocked due to Non-Secure Connection (HTTP)</b><br><br>
+                    You are using <code>http://</code> which browsers block.<br>
+                    Please use the <b>HTTPS</b> link from Ngrok.<br>
+                    (Example: <code>https://${window.location.host}...</code>)
+                 `;
+                document.getElementById('mobile-instr').style.display = 'none';
+                return;
+            }
 
             if (isPC) {
                 document.getElementById('error-text').innerText = "You are using an IP address (" + ip + ") on PC. Browsers block cameras on IP addresses. Use Localhost instead.";
@@ -223,9 +523,8 @@
                 fixBtn.style.display = 'inline-block';
                 fixBtn.href = "http://127.0.0.1:8000/chat/" + roomName + "/";
             } else {
-                // Check specifically for iOS
                 if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-                    document.getElementById('error-text').innerHTML = "<b>iOS Restricted:</b> Apple blocks camera access on insecure connections (http://).<br><br>You must use <b>HTTPS</b> or try an Android device/PC.";
+                    document.getElementById('error-text').innerHTML = "<b>iOS Restricted:</b> Apple blocks camera access on insecure connections (http://).<br><br>You must use <b>HTTPS</b>.";
                     document.getElementById('mobile-instr').style.display = 'none';
                 } else {
                     document.getElementById('error-text').innerText = "On Mobile, you MUST enable 'Insecure Origins' because you are using an IP address.";
@@ -238,21 +537,15 @@
 
         const chatSocket = new WebSocket(wsUrl);
 
-        // --- WEBSOCKET LOGIC ---
         chatSocket.onopen = function () {
             log("WebSocket OPEN Success!");
             setStatus("Connected. Starting Video...");
-
-            // AUTO START LOGIC
-            // We wait for the other user to join to trigger the offer, OR if we are late, we trigger it.
-            // But to be safe content, we still trigger it once on load, and THEN trigger it again if they join later.
             if (isCaller) {
                 log("I am the Caller. Initiating...");
                 startVideo(true);
             } else {
                 log("I am the Receiver. Waiting for offer...");
             }
-            // Note: The new 'user_joined' handler below handles the race condition where we joined first.
         };
 
         chatSocket.onerror = function (e) {
@@ -267,29 +560,40 @@
         chatSocket.onmessage = function (e) {
             const data = JSON.parse(e.data);
             if (data.type === 'chat_message') {
-                document.querySelector('#chat-log').innerHTML += (data.username + ': ' + data.message + '<br>');
-            } else if (data.type === 'video_signal') {
-                log("RX Signal: " + data.signal.type);
-                handleVideoSignal(data.signal);
+                const chatLog = document.querySelector('#chat-log');
+                const isMe = data.username === "{{ request.user.username }}";
+                const bubbleClass = isMe ? 'msg-out' : 'msg-in';
+                const senderName = isMe ? 'You' : data.username;
+
+                const html = `
+                    <div class="message-bubble ${bubbleClass}">
+                        <span class="meta-info">${senderName}</span>
+                        ${data.message}
+                    </div>
+                `;
+                chatLog.insertAdjacentHTML('beforeend', html);
+                chatLog.scrollTop = chatLog.scrollHeight;
+
             } else if (data.type === 'user_joined') {
                 log("User Joined: " + data.sender);
-                setStatus("User Joined! Starting Video...");
-
-                // If I am the caller, I should restart the offer process now that I know they are here
+                setStatus("User Joined!");
                 if (isCaller) {
                     log("Partner is here. Sending Offer...");
                     startVideo(true);
                 }
+            } else if (data.type === 'video_signal') {
+                log("RX Signal: " + data.signal.type);
+                handleVideoSignal(data.signal);
+
             } else if (data.type === 'user_left') {
                 log("User Left!");
                 setStatus("The other user has left.");
                 stopVideo();
                 stopVideo();
-                setTimeout(() => { window.location.replace("/"); }, 3000); // Redirect after 3s
+                setTimeout(() => { window.location.replace("/"); }, 3000);
             }
         };
 
-        // --- END CALL LOGIC ---
         function endCall() {
             if (confirm("Are you sure you want to end the call?")) {
                 stopVideo();
@@ -298,34 +602,102 @@
             }
         }
 
-        // --- CHAT SEND ---
+        function verifyGender(gender) {
+            const partner = "{{ partner_name }}";
+            if (!partner || partner === "Unknown") {
+                alert("Error: Cannot verify unknown partner.");
+                return;
+            }
+
+            if (confirm("Verify that " + partner + " is " + (gender == 'M' ? 'Male' : 'Female') + "?\nThis cannot be undone.")) {
+                fetch("/ajax/verify-gender/", {
+                    method: "POST",
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify({
+                        'username': partner,
+                        'gender': gender
+                    })
+                })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error("HTTP Status " + response.status);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (data.status === 'success') {
+                            alert("Verified! Thank you.");
+                            // Hide the buttons immediately
+                            const verifyArea = document.getElementById('verify-area');
+                            if (verifyArea) verifyArea.style.display = 'none';
+                        } else {
+                            alert("Server Error: " + data.message);
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Verification Error:", err);
+                        alert("Network/System Error: " + err);
+                    });
+            }
+        }
+
+        function reportUser() {
+            if (confirm("Are you sure you want to report this user for inappropriate behavior?")) {
+                fetch("/ajax/report-user/", {
+                    method: "POST",
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify({
+                        'username': "{{ partner_name }}",
+                        'reason': 'Inappropriate Behavior (Video)'
+                    })
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            alert("User reported. Thank you for keeping us safe.");
+                        } else {
+                            alert("Error: " + data.message);
+                        }
+                    })
+                    .catch(err => console.error(err));
+            }
+        }
+
         document.querySelector('#chat-message-submit').onclick = function (e) {
             const messageInputDom = document.querySelector('#chat-message-input');
             const message = messageInputDom.value;
+            if (message.trim() === "") return;
             chatSocket.send(JSON.stringify({
                 'type': 'chat_message', 'message': message, 'username': "{{ request.user.username }}"
             }));
             messageInputDom.value = '';
         };
 
-        // --- WEBRTC START ---
         let localStream;
         let peerConnection;
-        const config = { 'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }] };
+        const config = {
+            'iceServers': [
+                { 'urls': 'stun:stun.l.google.com:19302' },
+                { 'urls': 'stun:stun1.l.google.com:19302' },
+                { 'urls': 'stun:stun2.l.google.com:19302' }
+            ]
+        };
         let iceQueue = [];
 
         function startVideo(isInitiator) {
             log("Requesting Camera...");
 
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                // SMART ERROR DETECTION
                 const hostname = window.location.hostname;
                 const isPC = (hostname !== '127.0.0.1' && hostname !== 'localhost');
-                showError(true, hostname); // Default to PC view if logic is simpler, but we can detect mobile UA too.
+                showError(true, hostname);
 
-                // Let's rely on the previous logic we discussed:
-                // If it's a private IP (192, 172, 10) it might be PC or Mobile. 
-                // We'll show the PC button regardless, as it's harmless on mobile (just won't load)
                 if (/Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent)) {
                     showError(false, hostname);
                 } else {
@@ -356,7 +728,6 @@
                 .catch(err => {
                     log("Camera Blocked: " + err);
                     console.error(err);
-
                     const hostname = window.location.hostname;
                     if (/Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent)) {
                         showError(false, hostname);
@@ -373,14 +744,31 @@
 
             peerConnection.ontrack = event => {
                 log("Received Remote Stream!");
-                document.getElementById('remote-video').srcObject = event.streams[0];
+                const video = document.getElementById('remote-video');
+                video.srcObject = event.streams[0];
+                video.play().catch(e => {
+                    // Auto-play might fail
+                    setStatus("Tap screen to unmute/play");
+                });
                 setStatus("Connected!");
-                // document.getElementById('debug-log').style.display = 'none'; // Keep debug log visible for mobile testing
             };
 
             peerConnection.onicecandidate = event => {
                 if (event.candidate) {
                     sendSignal({ 'type': 'candidate', 'candidate': event.candidate });
+                }
+            };
+
+            peerConnection.oniceconnectionstatechange = () => {
+                log("ICE State: " + peerConnection.iceConnectionState);
+                if (peerConnection.iceConnectionState === 'failed') {
+                    setStatus("Connection Failed");
+                }
+                if (peerConnection.iceConnectionState === 'disconnected') {
+                    setStatus("User Disconnected");
+                }
+                if (peerConnection.iceConnectionState === 'connected') {
+                    setStatus("Connected!");
                 }
             };
         }
@@ -409,11 +797,16 @@
 
             } else if (signal.type === 'answer') {
                 log("RX Answer");
-                peerConnection.setRemoteDescription(new RTCSessionDescription(signal.sdp));
-                processIceQueue();
+                peerConnection.setRemoteDescription(new RTCSessionDescription(signal.sdp))
+                    .then(() => {
+                        log("Remote Description Set (Answer)");
+                        processIceQueue();
+                    })
+                    .catch(err => log("Error setting details: " + err));
             } else if (signal.type === 'candidate') {
                 if (peerConnection && peerConnection.remoteDescription) {
-                    peerConnection.addIceCandidate(new RTCIceCandidate(signal.candidate));
+                    peerConnection.addIceCandidate(new RTCIceCandidate(signal.candidate))
+                        .catch(err => log("Error adding candidate: " + err));
                 } else {
                     log("Queuing ICE Candidate");
                     iceQueue.push(signal.candidate);
@@ -430,7 +823,8 @@
                     log("Sending Answer");
                     sendSignal({ 'type': 'answer', 'sdp': peerConnection.localDescription });
                     processIceQueue();
-                });
+                })
+                .catch(err => log("Offer Error: " + err));
         }
 
         function processIceQueue() {

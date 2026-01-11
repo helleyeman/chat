@@ -139,6 +139,22 @@
             <img src="{{ profile.image.url }}"
                 style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; margin-bottom: 10px;">
             <h3>{{ profile.user.username }}</h3>
+
+            <!-- Crowd Verdict -->
+            {% if profile.female_votes > profile.male_votes %}
+            <div style="margin: 5px 0; color: #e91e63; font-weight: bold; font-size: 13px;">
+                ✓ Voted Female by most users
+            </div>
+            {% elif profile.male_votes > profile.female_votes %}
+            <div style="margin: 5px 0; color: #2196f3; font-weight: bold; font-size: 13px;">
+                ✓ Voted Male by most users
+            </div>
+            {% else %}
+            <div style="margin: 5px 0; color: #999; font-size: 12px; font-style: italic;">
+                ⚪ Not verified yet
+            </div>
+            {% endif %}
+
             <p>{{ profile.age }} yrs • {{ profile.state }}, {{ profile.country.name }}</p>
             <div class="price">💎 {{ profile.call_price }}</div>
             <p><small>Total Cost: 💎 {{ profile.call_price|add:profile.call_price }} (est.)</small></p>

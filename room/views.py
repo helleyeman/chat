@@ -16,7 +16,9 @@ def rooms(request, room_name):
             if user != request.user:
                 partner_name = user.username
                 break
-                
+                partner_name = user.username
+                break
+    
     is_caller = False
     if partner_name != "Unknown":
         # Deterministic rule: Alphabetically smaller username initiates the call

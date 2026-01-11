@@ -31,6 +31,9 @@ CSRF_TRUSTED_ORIGINS = [
     'https://*.ngrok-free.app',
     'https://*.ngrok.io',
     'https://*.ngrok-free.dev',
+    'http://*.ngrok-free.app',
+    'http://*.ngrok.io',
+    'http://*.ngrok-free.dev',
 ]
 
 
@@ -52,6 +55,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware', # Enhanced Static File Serving
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -60,6 +64,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'chat.middleware.NoCacheMiddleware', # Custom middleware
     'users.middleware.UpdateLastSeenMiddleware',
+    'users.middleware.BanEnforcementMiddleware',
 ]
 
 ROOT_URLCONF = 'chat.urls'
@@ -105,14 +110,9 @@ DATABASES = {
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
+
     {
         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
     },
     {
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
@@ -146,5 +146,10 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 LOGIN_REDIRECT_URL = 'dashboard'
 
-# Email Configuration (Dev Mode: Prints to Console)
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+# Email Configuration (Real Emails via Gmail)
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'glysmork@gmail.com'
+EMAIL_HOST_PASSWORD = 'rxhp pgls pogm ykay'
